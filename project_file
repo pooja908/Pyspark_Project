@@ -1,0 +1,57 @@
+from pyspark.sql.types import *
+schema=StructType([
+    StructField("ProductId",IntegerType(),True),
+    StructField("CustomerId",StringType(),True),
+    StructField("OrderDate",DateType(),True),
+    StructField("Location",StringType(),True),
+    StructField("SourceOrder",StringType(),True),
+])
+
+sales_df=spark.read.format("csv").option("inferschema","true").schema(schema).load("/Volumes/volume_1/volume_schema/volume_files/sales.csv.txt")
+display(sales_df)
+
+from pyspark.sql.functions import *
+sales_df=sales_df.withColumn("order_date",year(sales_df.OrderDate))
+sales_df=sales_df.withColumn("order_month",month(sales_df.OrderDate))
+sales_df=sales_df.withColumn("order_quarter",quarter(sales_df.OrderDate))
+display(sales_df)
+
+#Menu Dataframe
+from pyspark.sql.types import *
+
+schema=StructType([StructField("ProductId",IntegerType(),True),
+                   StructField("ProductName",StringType(),True),
+                   StructField("Price",StringType(),True)])
+
+menu_df=spark.read.format("csv").option("inferschema",True).schema(schema).load("/Volumes/volume_1/volume_schema/volume_files/menu.csv.txt")    
+display(menu_df)  
+
+#total amount spent by customer
+total_amount=sales_df.join(menu_df,"ProductId").groupBy("CustomerId").agg(sum("price")).orderBy("CustomerId")
+display(total_amount)
+
+#total amount spent by each category
+total_amount_spent=sales_df.join(menu_df,"ProductId").groupBy("ProductName").agg(sum("price")).orderBy("ProductName")
+display(total_amount_spent)
+
+#total amount sales by month
+total_amount_month=sales_df.join(menu_df,"ProductId").groupBy("order_month").agg(sum("price")).orderBy("order_month")
+display(total_amount_month)
+
+df_inner=sales_df.join(menu_df,"ProductId")
+
+#yearly Sales
+yearly_sales=df_inner.groupBy("order_date").agg(sum("Price")).orderBy("order_date")
+display(yearly_sales)
+
+#how many time each product purchased
+from pyspark.sql.functions import *
+product_count=df_inner.groupBy("ProductId","ProductName").agg(count("ProductId").alias("count")).orderBy(desc('count'))
+display(product_count)
+
+#top 5 ordered foods
+from pyspark.sql.functions import *
+top_count=df_inner.groupBy("ProductId","ProductName").agg(count("ProductId").alias("count")).orderBy(desc('count')).limit(5)
+display(top_count)
+
+
